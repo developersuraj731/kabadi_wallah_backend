@@ -95,7 +95,7 @@ const app = express();
 // 2. Explicit CORS Configuration
 // This specifically allows your local frontend and handles Preflight requests
 app.use(cors({
-    origin: ["http://localhost:8080", "http://localhost:5173"], // Add your live frontend URL here later
+    origin: ["http://localhost:8080", "http://localhost:5173","https://kabadsathi.in/"], // Add your live frontend URL here later
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true
