@@ -8,7 +8,7 @@ const bookingSchema = new mongoose.Schema({
     estimatedWeight: { type: String, required: true },
     preferredDate: { type: String, required: true },
     preferredTime: { type: String, required: true },
-}, { timestamps: true, collection: 'Booking' });
+}, { timestamps: true, collection: 'Bookings' });
 
 const Booking = mongoose.model("Booking", bookingSchema);
 
