@@ -78,81 +78,188 @@
 // }
 
 // // CRITICAL: Export the app for Vercel to handle
+// // export default app;
+
+// import express from 'express';
+// import mongoose from 'mongoose';
+// import dotenv from 'dotenv';
+// import cors from 'cors';
+// import userRoutes from './routes/userRoutes.js'; 
+
+// dotenv.config();
+
+// const app = express();
+
+// // 1. BROADEN THE ORIGIN LIST
+// // Browsers see 'www.kabadsathi.in' and 'kabadsathi.in' as different origins.
+// const allowedOrigins = [
+//     "http://localhost:8080", 
+//     "http://localhost:5173", 
+//     "https://kabadsathi.in", 
+//     "https://www.kabadsathi.in"
+// ];
+
+// // 2. MOVE CORS TO THE ABSOLUTE TOP
+// app.use(cors({
+//     origin: function (origin, callback) {
+//         // Allow requests with no origin (like mobile apps or Postman)
+//         if (!origin) return callback(null, true);
+        
+//         if (allowedOrigins.indexOf(origin) !== -1) {
+//             callback(null, true);
+//         } else {
+//             console.log("CORS blocked origin:", origin); // Check Vercel logs to see what failed
+//             callback(new Error('Not allowed by CORS'));
+//         }
+//     },
+//     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+//     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+//     credentials: true,
+//     optionsSuccessStatus: 200
+// }));
+
+// // 3. EXPLICIT PRE-FLIGHT HANDLER
+// // This ensures that the 'OPTIONS' request is answered immediately before any other logic.
+// app.options('*', cors());
+
+// app.use(express.json());
+
+// // 4. DATABASE CONNECTION
+// const connectDB = async () => {
+//     if (mongoose.connection.readyState >= 1) return;
+//     try {
+//         await mongoose.connect(process.env.MONGO_URI);
+//         console.log("✅ MongoDB Connected");
+//     } catch (err) {
+//         console.error("❌ MongoDB Connection Error:", err.message);
+//     }
+// };
+
+// // Middleware to ensure DB connection
+// app.use(async (req, res, next) => {
+//     await connectDB();
+//     next();
+// });
+
+// // 5. ROUTES
+// app.use("/api/users", userRoutes);
+
+// app.get("/", (req, res) => {
+//     res.send("API is running and CORS is configured.");
+// });
+
+// // 6. VERCEL / LOCAL SUPPORT
+// if (process.env.NODE_ENV !== 'production') {
+//     const PORT = process.env.PORT || 5000;
+//     app.listen(PORT, () => {
+//         console.log(`Server running on port ${PORT}`);
+//     });
+// }
+
 // export default app;
+
+
 
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import userRoutes from './routes/userRoutes.js'; 
+import userRoutes from './routes/userRoutes.js';
 
 dotenv.config();
 
 const app = express();
 
-// 1. BROADEN THE ORIGIN LIST
-// Browsers see 'www.kabadsathi.in' and 'kabadsathi.in' as different origins.
+/**
+ * ✅ Allowed Origins (UPDATE THESE)
+ */
 const allowedOrigins = [
-    "http://localhost:8080", 
-    "http://localhost:5173", 
-    "https://kabadsathi.in", 
-    "https://www.kabadsathi.in"
+    "http://localhost:8080",
+    "http://localhost:5173",
+    "https://kabadsathi.in",
+    "https://www.kabadsathi.in",
 ];
 
-// 2. MOVE CORS TO THE ABSOLUTE TOP
+/**
+ * ✅ CORS Middleware (TOP PRIORITY)
+ */
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps or Postman)
-        if (!origin) return callback(null, true);
-        
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
+        if (!origin) return callback(null, true); // Postman / mobile apps
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
         } else {
-            console.log("CORS blocked origin:", origin); // Check Vercel logs to see what failed
-            callback(new Error('Not allowed by CORS'));
+            console.log("❌ CORS blocked origin:", origin);
+            return callback(new Error("Not allowed by CORS"));
         }
     },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-    credentials: true,
-    optionsSuccessStatus: 200
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
 }));
 
-// 3. EXPLICIT PRE-FLIGHT HANDLER
-// This ensures that the 'OPTIONS' request is answered immediately before any other logic.
-app.options('*', cors());
+/**
+ * ✅ Vercel FIX (Manual Headers + OPTIONS handling)
+ */
+app.use((req, res, next) => {
+    const origin = req.headers.origin;
+
+    if (allowedOrigins.includes(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+
+    if (req.method === "OPTIONS") {
+        return res.sendStatus(200);
+    }
+
+    next();
+});
 
 app.use(express.json());
 
-// 4. DATABASE CONNECTION
+/**
+ * ✅ MongoDB Connection
+ */
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
+
     try {
         await mongoose.connect(process.env.MONGO_URI);
         console.log("✅ MongoDB Connected");
     } catch (err) {
-        console.error("❌ MongoDB Connection Error:", err.message);
+        console.error("❌ MongoDB Error:", err.message);
     }
 };
 
-// Middleware to ensure DB connection
+/**
+ * ✅ Ensure DB connection before every request
+ */
 app.use(async (req, res, next) => {
     await connectDB();
     next();
 });
 
-// 5. ROUTES
+/**
+ * ✅ Routes
+ */
 app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
     res.send("API is running and CORS is configured.");
 });
 
-// 6. VERCEL / LOCAL SUPPORT
+/**
+ * ✅ Local Development Only
+ */
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
-        console.log(`Server running on port ${PORT}`);
+        console.log(`🚀 Server running on port ${PORT}`);
     });
 }
 
