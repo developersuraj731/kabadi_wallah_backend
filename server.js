@@ -80,33 +80,51 @@
 // // CRITICAL: Export the app for Vercel to handle
 // export default app;
 
-
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
-
 import userRoutes from './routes/userRoutes.js'; 
 
 dotenv.config();
 
 const app = express();
 
-// 1. Updated CORS Configuration
+// 1. BROADEN THE ORIGIN LIST
+// Browsers see 'www.kabadsathi.in' and 'kabadsathi.in' as different origins.
+const allowedOrigins = [
+    "http://localhost:8080", 
+    "http://localhost:5173", 
+    "https://kabadsathi.in", 
+    "https://www.kabadsathi.in"
+];
+
+// 2. MOVE CORS TO THE ABSOLUTE TOP
 app.use(cors({
-    // REMOVED the trailing slash from kabadsathi.in
-    origin: ["http://localhost:8080", "http://localhost:5173", "https://kabadsathi.in"], 
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps or Postman)
+        if (!origin) return callback(null, true);
+        
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            console.log("CORS blocked origin:", origin); // Check Vercel logs to see what failed
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     credentials: true,
-    optionsSuccessStatus: 200 // Vital for some browsers/Vercel edge cases
+    optionsSuccessStatus: 200
 }));
 
-// 2. Explicitly handle the OPTIONS preflight request
-app.options('*', cors()); 
+// 3. EXPLICIT PRE-FLIGHT HANDLER
+// This ensures that the 'OPTIONS' request is answered immediately before any other logic.
+app.options('*', cors());
 
 app.use(express.json());
 
+// 4. DATABASE CONNECTION
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
@@ -117,17 +135,20 @@ const connectDB = async () => {
     }
 };
 
+// Middleware to ensure DB connection
 app.use(async (req, res, next) => {
     await connectDB();
     next();
 });
 
+// 5. ROUTES
 app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
     res.send("API is running and CORS is configured.");
 });
 
+// 6. VERCEL / LOCAL SUPPORT
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
