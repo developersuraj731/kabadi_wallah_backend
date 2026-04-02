@@ -80,31 +80,33 @@
 // // CRITICAL: Export the app for Vercel to handle
 // export default app;
 
+
 import express from 'express';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import cors from 'cors';
 
-// 1. Import routes (Ensure .js extension is present in the file path)
 import userRoutes from './routes/userRoutes.js'; 
 
 dotenv.config();
 
 const app = express();
 
-// 2. Explicit CORS Configuration
-// This specifically allows your local frontend and handles Preflight requests
+// 1. Updated CORS Configuration
 app.use(cors({
-    origin: ["http://localhost:8080", "http://localhost:5173","https://kabadsathi.in/"], // Add your live frontend URL here later
+    // REMOVED the trailing slash from kabadsathi.in
+    origin: ["http://localhost:8080", "http://localhost:5173", "https://kabadsathi.in"], 
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    credentials: true,
+    optionsSuccessStatus: 200 // Vital for some browsers/Vercel edge cases
 }));
+
+// 2. Explicitly handle the OPTIONS preflight request
+app.options('*', cors()); 
 
 app.use(express.json());
 
-// 3. Database Connection Helper
-// In Serverless, we want to ensure the DB is connected before processing the request
 const connectDB = async () => {
     if (mongoose.connection.readyState >= 1) return;
     try {
@@ -115,20 +117,17 @@ const connectDB = async () => {
     }
 };
 
-// 4. Middleware to ensure DB connection on every request
 app.use(async (req, res, next) => {
     await connectDB();
     next();
 });
 
-// 5. Routes
 app.use("/api/users", userRoutes);
 
 app.get("/", (req, res) => {
     res.send("API is running and CORS is configured.");
 });
 
-// 6. Vercel Support
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {
